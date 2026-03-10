@@ -148,6 +148,7 @@ const mutations = {
     Object.assign(tab, newFileState)
     tab.id = oldId
     tab.notifications = oldNotifications
+    tab.isJustLoaded = true
     if (oldHistory) {
       tab.history = oldHistory
     }
@@ -868,6 +869,9 @@ const actions = {
 
     const { markdown, isMixedLineEndings } = markdownDocument
     const docState = createDocumentState(Object.assign(markdownDocument, options))
+    if (markdownDocument.pathname) {
+      docState.isJustLoaded = true
+    }
     const { id, cursor } = docState
 
     if (selected) {
@@ -957,11 +961,18 @@ const actions = {
       commit('SET_TOC', toc)
     }
 
-    // Change save status/save to file only when the markdown changed!
-    if (markdown !== oldMarkdown) {
+    // Clear the just-loaded flag on the first content change event after file load.
+    const wasJustLoaded = state.currentFile.isJustLoaded
+    if (wasJustLoaded) {
+      state.currentFile.isJustLoaded = false
+    }
+
+    // Change save status/save to file only when the markdown changed
+    // and not from the initial load round-trip normalization.
+    if (markdown !== oldMarkdown && !wasJustLoaded) {
       commit('SET_SAVE_STATUS', false)
 
-      // Save file is auto save is enable and file exist on disk.
+      // Save file if auto save is enabled and file exists on disk.
       if (pathname && autoSave) {
         const options = getOptionsFromState(state.currentFile)
         dispatch('HANDLE_AUTO_SAVE', {
